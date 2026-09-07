@@ -2,7 +2,6 @@ from google import genai
 from google.genai import types
 
 from app.config import GEMINI_API_KEY, EMBEDDING_MODEL, EMBEDDING_DIMENSION
-
 _client = None
 
 

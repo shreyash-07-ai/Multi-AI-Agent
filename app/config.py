@@ -19,6 +19,20 @@ GEMINI_API_KEY_4 = os.getenv("GEMINI_API_KEY_4")
 GEMINI_API_KEY_5 = os.getenv("GEMINI_API_KEY_5")
 GEMINI_API_KEY_6 = os.getenv("GEMINI_API_KEY_6")
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or GEMINI_API_KEY_1
+GEMINI_API_KEYS = list(dict.fromkeys(
+    key for key in (
+        GEMINI_API_KEY,
+        GEMINI_API_KEY_1,
+        GEMINI_API_KEY_2,
+        GEMINI_API_KEY_3,
+        GEMINI_API_KEY_4,
+        GEMINI_API_KEY_5,
+        GEMINI_API_KEY_6,
+    ) if key
+))
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
 XAI_API_KEY = os.getenv("XAI_API_KEY")
 XAI_MODEL = os.getenv("XAI_MODEL", "grok-4.6")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001")
