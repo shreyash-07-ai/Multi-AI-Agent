@@ -128,7 +128,7 @@ with st.container(border=True):
     st.subheader("2. Request")
     query = st.text_area(
         "Prompt",
-        "Research the latest Generative AI trends and create a proposal and a 12-slide presentation using the same tone and style as the uploaded files.",
+        placeholder="write the prompt here",
         height=90,
     )
 
