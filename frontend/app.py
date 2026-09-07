@@ -1,7 +1,16 @@
 import os
+import sys
 from pathlib import Path
 
 import streamlit as st
+
+# When Streamlit runs frontend/app.py directly, the frontend directory can be
+# placed before the repository root on sys.path. That can make `app` resolve
+# to frontend/app.py instead of the real app/ Python package. Put the repo
+# root first so imports such as `app.streamlit_workflow` resolve correctly.
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 # Streamlit Cloud stores secrets in st.secrets rather than .env.
 # Copy flat secret values into the environment before importing app modules,
