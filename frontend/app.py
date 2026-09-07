@@ -9,138 +9,89 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# -----------------------------------------------------------------------------
-# Compact, centered dashboard styling
-# -----------------------------------------------------------------------------
 st.markdown(
     """
     <style>
-    /* Keep the complete dashboard centered and compact. */
     .block-container {
         max-width: 1050px !important;
         margin: 0 auto !important;
         padding: 1.2rem 1.5rem 2rem !important;
     }
-
-    /* Reduce Streamlit's default vertical spacing. */
-    div[data-testid="stVerticalBlock"] > div:has(> div[data-testid="stVerticalBlock"]),
-    div[data-testid="stHorizontalBlock"] {
-        gap: 0.55rem !important;
-    }
-
+    div[data-testid="stHorizontalBlock"] { gap: 0.55rem !important; }
     h1 {
         font-size: 2rem !important;
         text-align: center !important;
         margin-bottom: 0.15rem !important;
     }
-
     h2, h3 {
         margin-top: 0.55rem !important;
         margin-bottom: 0.45rem !important;
     }
-
     [data-testid="stCaptionContainer"] {
         text-align: center !important;
         margin-bottom: 0.8rem !important;
     }
-
-    /* Compact input controls. */
-    [data-testid="stFileUploader"] {
-        padding: 0.15rem !important;
-    }
-
+    [data-testid="stFileUploader"] { padding: 0.15rem !important; }
     [data-testid="stTextArea"] textarea {
         min-height: 88px !important;
         font-size: 0.9rem !important;
     }
-
-    [data-testid="stTextInput"] input {
-        font-size: 0.9rem !important;
-    }
-
-    .stButton > button,
-    .stDownloadButton > button {
+    [data-testid="stTextInput"] input { font-size: 0.9rem !important; }
+    .stButton > button, .stDownloadButton > button {
         min-height: 2.25rem !important;
         padding: 0.35rem 0.85rem !important;
         font-size: 0.82rem !important;
         border-radius: 0.45rem !important;
     }
-
-    /* Make the primary workflow button compact but prominent. */
     div[data-testid="stButton"] > button[kind="primary"] {
         width: 100% !important;
         max-width: 360px !important;
         display: block !important;
         margin: 0.35rem auto 0 !important;
     }
-
-    /* Keep checkbox options together in the center. */
-    [data-testid="stCheckbox"] {
-        padding-top: 0.1rem !important;
-    }
-
-    /* Compact bordered sections. */
+    [data-testid="stCheckbox"] { padding-top: 0.1rem !important; }
     div[data-testid="stVerticalBlockBorderWrapper"] {
         padding: 0.7rem 0.9rem !important;
         border-radius: 0.65rem !important;
     }
-
-    /* Center status text and keep long lists from dominating the screen. */
     .dashboard-note {
         text-align: center;
         font-size: 0.78rem;
         opacity: 0.75;
-        margin-top: -0.2rem;
+        margin-top: 0.35rem;
     }
-
     @media (max-width: 700px) {
-        .block-container {
-            padding: 0.8rem 0.75rem 1.5rem !important;
-        }
-        h1 {
-            font-size: 1.45rem !important;
-        }
+        .block-container { padding: 0.8rem 0.75rem 1.5rem !important; }
+        h1 { font-size: 1.45rem !important; }
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# -----------------------------------------------------------------------------
-# State
-# -----------------------------------------------------------------------------
 if "file_ids" not in st.session_state:
     st.session_state.file_ids = []
 if "uploaded_names" not in st.session_state:
     st.session_state.uploaded_names = []
 
-# -----------------------------------------------------------------------------
-# Header
-# -----------------------------------------------------------------------------
 st.title("Multi-Agent AI — Document & PPT Generator")
 st.caption("Developed by Shreyash Musmade")
 
-# API configuration stays in the main centered dashboard instead of the sidebar.
+API = "http://localhost:8000"
 with st.expander("⚙️ Backend connection", expanded=False):
     API = st.text_input(
         "FastAPI URL",
-        "http://localhost:8000",
+        API,
         label_visibility="collapsed",
         placeholder="http://localhost:8000",
     )
-else:
-    API = "http://localhost:8000"
 
-# -----------------------------------------------------------------------------
-# Upload section
-# -----------------------------------------------------------------------------
 with st.container(border=True):
     st.subheader("1. Upload enterprise knowledge and templates")
     files = st.file_uploader(
         "PDF, DOCX, PPTX or image",
         type=["pdf", "docx", "pptx", "png", "jpg", "jpeg", "webp"],
         accept_multiple_files=True,
-        label_visibility="visible",
     )
 
     upload_col, count_col = st.columns([1, 1])
@@ -173,9 +124,6 @@ with st.container(border=True):
     if st.session_state.uploaded_names:
         st.caption("Indexed: " + " • ".join(x[0] for x in st.session_state.uploaded_names))
 
-# -----------------------------------------------------------------------------
-# Request section
-# -----------------------------------------------------------------------------
 with st.container(border=True):
     st.subheader("2. Request")
     query = st.text_area(
@@ -192,9 +140,6 @@ with st.container(border=True):
 
     run_clicked = st.button("🚀 Run Multi-Agent Workflow", type="primary")
 
-# -----------------------------------------------------------------------------
-# Results
-# -----------------------------------------------------------------------------
 if run_clicked:
     payload = {
         "message": query,
