@@ -109,7 +109,7 @@ if "session_id" not in st.session_state:
 st.title("Multi-Agent AI — Document & PPT Generator")
 st.caption("Developed by Shreyash Musmade")
 
-st.info("Running in standalone Streamlit mode — no FastAPI backend is required.")
+#st.info("Running in standalone Streamlit mode — no FastAPI backend is required.")
 
 
 # -----------------------------------------------------------------------------
