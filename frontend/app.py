@@ -69,10 +69,15 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# -----------------------------------------------------------------------------
+# Session state
+# -----------------------------------------------------------------------------
 if "file_ids" not in st.session_state:
     st.session_state.file_ids = []
 if "uploaded_names" not in st.session_state:
     st.session_state.uploaded_names = []
+if "result" not in st.session_state:
+    st.session_state.result = None
 
 st.title("Multi-Agent AI — Document & PPT Generator")
 st.caption("Developed by Shreyash Musmade")
@@ -86,6 +91,9 @@ with st.expander("⚙️ Backend connection", expanded=False):
         placeholder="http://localhost:8000",
     )
 
+# -----------------------------------------------------------------------------
+# Upload section
+# -----------------------------------------------------------------------------
 with st.container(border=True):
     st.subheader("1. Upload enterprise knowledge and templates")
     files = st.file_uploader(
@@ -124,6 +132,9 @@ with st.container(border=True):
     if st.session_state.uploaded_names:
         st.caption("Indexed: " + " • ".join(x[0] for x in st.session_state.uploaded_names))
 
+# -----------------------------------------------------------------------------
+# Request section
+# -----------------------------------------------------------------------------
 with st.container(border=True):
     st.subheader("2. Request")
     query = st.text_area(
@@ -140,6 +151,11 @@ with st.container(border=True):
 
     run_clicked = st.button("🚀 Run Multi-Agent Workflow", type="primary")
 
+# -----------------------------------------------------------------------------
+# Run workflow only when the main button is clicked.
+# The result is saved in session_state so clicking either download button does
+# NOT require the user to run the complete multi-agent workflow again.
+# -----------------------------------------------------------------------------
 if run_clicked:
     payload = {
         "message": query,
@@ -158,37 +174,57 @@ if run_clicked:
 
     if r is not None:
         if r.ok:
-            d = r.json()
-            st.success(f"Workflow complete — Version {d['version']}")
-
-            with st.expander("🔎 Agent trace", expanded=False):
-                for item in d["trace"]:
-                    st.write("•", item)
-
-            with st.expander("✅ Validation", expanded=False):
-                st.json(d["validation"])
-
-            if d["sources"]:
-                with st.expander("🌐 Web sources", expanded=False):
-                    for s in d["sources"]:
-                        st.write(f"- [{s['title']}]({s['url']})")
-
-            with st.container(border=True):
-                st.subheader("Answer")
-                st.write(d["answer"])
-
-            if d["artifacts"]:
-                st.subheader("Generated files")
-                download_cols = st.columns(min(len(d["artifacts"]), 2))
-                for index, (kind, path) in enumerate(d["artifacts"].items()):
-                    p = Path(path)
-                    if p.exists():
-                        with download_cols[index % len(download_cols)]:
-                            st.download_button(
-                                f"⬇️ Download {kind.upper()}",
-                                p.read_bytes(),
-                                file_name=p.name,
-                                use_container_width=True,
-                            )
+            st.session_state.result = r.json()
         else:
             st.error(r.text)
+
+# -----------------------------------------------------------------------------
+# Results remain visible after download-button reruns.
+# -----------------------------------------------------------------------------
+result = st.session_state.result
+
+if result:
+    st.success(f"Workflow complete — Version {result['version']}")
+
+    with st.expander("🔎 Agent trace", expanded=False):
+        for item in result["trace"]:
+            st.write("•", item)
+
+    with st.expander("✅ Validation", expanded=False):
+        st.json(result["validation"])
+
+    if result["sources"]:
+        with st.expander("🌐 Web sources", expanded=False):
+            for s in result["sources"]:
+                st.write(f"- [{s['title']}]({s['url']})")
+
+    with st.container(border=True):
+        st.subheader("Answer")
+        st.write(result["answer"])
+
+    artifacts = result.get("artifacts", {})
+    if artifacts:
+        st.subheader("Generated files")
+        download_cols = st.columns(min(len(artifacts), 2))
+
+        for index, (kind, path) in enumerate(artifacts.items()):
+            p = Path(path)
+            if p.exists():
+                with download_cols[index % len(download_cols)]:
+                    st.download_button(
+                        f"⬇️ Download {kind.upper()}",
+                        data=p.read_bytes(),
+                        file_name=p.name,
+                        mime=(
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            if kind.lower() == "docx"
+                            else "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                            if kind.lower() == "pptx"
+                            else "application/octet-stream"
+                        ),
+                        use_container_width=True,
+                        on_click="ignore",
+                        key=f"download_{kind}_{p.name}",
+                    )
+            else:
+                st.warning(f"Generated {kind.upper()} file is no longer available: {path}")
