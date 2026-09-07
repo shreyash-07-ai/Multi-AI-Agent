@@ -1,114 +1,162 @@
 import time
 import random
 
-from openai import OpenAI
+from google import genai
+from google.genai import types
 
-from app.config import XAI_API_KEY, XAI_MODEL
-
-
-_client = None
+from app.config import GEMINI_API_KEYS, GEMINI_MODEL
 
 
-def client():
-    global _client
+# Store Gemini clients
+_clients = []
 
-    if _client is None:
-        if not XAI_API_KEY:
-            raise RuntimeError("XAI_API_KEY is missing in .env")
 
-        _client = OpenAI(
-            api_key=XAI_API_KEY,
-            base_url="https://api.x.ai/v1",
+def clients():
+    """
+    Create one Gemini client for each configured API key.
+    """
+
+    global _clients
+
+    if not GEMINI_API_KEYS:
+        raise RuntimeError(
+            "No Gemini API keys found. "
+            "Add GEMINI_API_KEY_1, GEMINI_API_KEY_2, etc. to .env"
         )
 
-    return _client
+    if not _clients:
+        _clients = [
+            genai.Client(api_key=api_key)
+            for api_key in GEMINI_API_KEYS
+        ]
+
+    return _clients
 
 
 def _is_retryable_error(error):
     """
-    Retry Grok/xAI errors that are usually temporary.
+    Check whether the Gemini error is temporary.
     """
+
     error_text = str(error).upper()
 
     retry_errors = [
         "429",
+        "RESOURCE_EXHAUSTED",
         "RATE_LIMIT",
         "TOO MANY REQUESTS",
+        "503",
+        "UNAVAILABLE",
         "500",
         "502",
-        "503",
         "504",
         "INTERNAL",
         "TIMEOUT",
         "TIMED OUT",
+        "DEADLINE_EXCEEDED",
         "SERVICE UNAVAILABLE",
     ]
 
-    return any(item in error_text for item in retry_errors)
+    return any(
+        item in error_text
+        for item in retry_errors
+    )
 
 
 def ask(system: str, user: str) -> str:
     """
-    Generate a Grok response with:
-    - Automatic retries
-    - Exponential backoff
-    - xAI/Grok API
+    Generate Gemini response using multiple API keys.
+
+    If one API key fails, the next API key is used.
     """
+
+    gemini_clients = clients()
 
     last_error = None
 
-    # Try the configured Grok model
-    for attempt in range(3):
+    # Try every Gemini API key
+    for key_index, gemini_client in enumerate(gemini_clients):
 
-        try:
-            response = client().chat.completions.create(
-                model=XAI_MODEL,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system,
-                    },
-                    {
-                        "role": "user",
-                        "content": user,
-                    },
-                ],
-                temperature=0.3,
-            )
+        key_number = key_index + 1
 
-            text = response.choices[0].message.content
+        print(
+            f"\nUsing Gemini API key #{key_number} "
+            f"| model={GEMINI_MODEL}"
+        )
 
-            if not text:
-                raise RuntimeError(
-                    f"Grok returned an empty response using model: {XAI_MODEL}"
+        # Retry current key twice
+        for attempt in range(2):
+
+            try:
+
+                response = gemini_client.models.generate_content(
+                    model=GEMINI_MODEL,
+                    contents=user,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system,
+                        temperature=0.3,
+                    ),
                 )
 
-            return text
+                text = getattr(
+                    response,
+                    "text",
+                    None
+                )
 
-        except Exception as error:
-            last_error = error
-
-            print(
-                f"Grok API error | model={XAI_MODEL} | "
-                f"attempt={attempt + 1}/3 | error={error}"
-            )
-
-            # Don't retry permanent errors
-            if not _is_retryable_error(error):
-                raise
-
-            # Exponential backoff
-            if attempt < 2:
-                delay = (2 ** (attempt + 1)) + random.uniform(0, 1)
+                if not text:
+                    raise RuntimeError(
+                        f"Gemini returned an empty response "
+                        f"using API key #{key_number}"
+                    )
 
                 print(
-                    f"Retrying Grok in {delay:.1f} seconds..."
+                    f"Gemini API key #{key_number} "
+                    f"worked successfully."
                 )
 
-                time.sleep(delay)
+                return text
 
+            except Exception as error:
+
+                last_error = error
+
+                print(
+                    f"Gemini error | "
+                    f"key=#{key_number} | "
+                    f"attempt={attempt + 1}/2 | "
+                    f"error={error}"
+                )
+
+                # If error is permanent,
+                # immediately move to next key.
+                if not _is_retryable_error(error):
+                    break
+
+                # Retry the same key once
+                if attempt < 1:
+
+                    delay = (
+                        2 ** (attempt + 1)
+                        + random.uniform(0, 1)
+                    )
+
+                    print(
+                        f"Retrying Gemini API key "
+                        f"#{key_number} "
+                        f"in {delay:.1f} seconds..."
+                    )
+
+                    time.sleep(delay)
+
+        # Current key failed
+        print(
+            f"Gemini API key #{key_number} failed. "
+            f"Switching to next API key..."
+        )
+
+    # All keys failed
     raise RuntimeError(
-        "Grok API is temporarily unavailable. "
-        "All retry attempts failed. "
+        "All Gemini API keys failed. "
         f"Last error: {last_error}"
     )

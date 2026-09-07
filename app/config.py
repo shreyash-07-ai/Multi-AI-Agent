@@ -12,6 +12,13 @@ for d in (DATA_DIR, UPLOAD_DIR, OUTPUT_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 # Gemini
+GEMINI_API_KEY_1 = os.getenv("GEMINI_API_KEY_1")
+GEMINI_API_KEY_2 = os.getenv("GEMINI_API_KEY_2")
+GEMINI_API_KEY_3 = os.getenv("GEMINI_API_KEY_3")
+GEMINI_API_KEY_4 = os.getenv("GEMINI_API_KEY_4")
+GEMINI_API_KEY_5 = os.getenv("GEMINI_API_KEY_5")
+GEMINI_API_KEY_6 = os.getenv("GEMINI_API_KEY_6")
+
 XAI_API_KEY = os.getenv("XAI_API_KEY")
 XAI_MODEL = os.getenv("XAI_MODEL", "grok-4.6")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001")
