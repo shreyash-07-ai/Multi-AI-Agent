@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 from pathlib import Path
 
-st.set_page_config(
+st.sst.set_page_config(
     page_title="Multi-Agent AI — Document & PPT Generator",
     page_icon="🤖",
     layout="centered",
