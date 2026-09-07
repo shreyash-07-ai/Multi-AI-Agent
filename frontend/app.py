@@ -1,6 +1,20 @@
-import streamlit as st
-import requests
+import os
 from pathlib import Path
+
+import streamlit as st
+
+# Streamlit Cloud stores secrets in st.secrets rather than .env.
+# Copy flat secret values into the environment before importing app modules,
+# so the existing project configuration and agent code continue to work.
+try:
+    for key, value in st.secrets.items():
+        if isinstance(value, (str, int, float, bool)):
+            os.environ.setdefault(key, str(value))
+except Exception:
+    pass
+
+from app.streamlit_workflow import upload_file, run_workflow
+
 
 st.set_page_config(
     page_title="Multi-Agent AI — Document & PPT Generator",
@@ -36,7 +50,6 @@ st.markdown(
         min-height: 88px !important;
         font-size: 0.9rem !important;
     }
-    [data-testid="stTextInput"] input { font-size: 0.9rem !important; }
     .stButton > button, .stDownloadButton > button {
         min-height: 2.25rem !important;
         padding: 0.35rem 0.85rem !important;
@@ -69,27 +82,26 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 # -----------------------------------------------------------------------------
 # Session state
 # -----------------------------------------------------------------------------
 if "file_ids" not in st.session_state:
     st.session_state.file_ids = []
+if "file_paths" not in st.session_state:
+    st.session_state.file_paths = []
 if "uploaded_names" not in st.session_state:
     st.session_state.uploaded_names = []
 if "result" not in st.session_state:
     st.session_state.result = None
+if "session_id" not in st.session_state:
+    st.session_state.session_id = f"streamlit_{os.urandom(8).hex()}"
 
 st.title("Multi-Agent AI — Document & PPT Generator")
 st.caption("Developed by Shreyash Musmade")
 
-API = "http://localhost:8000"
-with st.expander("⚙️ Backend connection", expanded=False):
-    API = st.text_input(
-        "FastAPI URL",
-        API,
-        label_visibility="collapsed",
-        placeholder="http://localhost:8000",
-    )
+st.info("Running in standalone Streamlit mode — no FastAPI backend is required.")
+
 
 # -----------------------------------------------------------------------------
 # Upload section
@@ -111,26 +123,26 @@ with st.container(border=True):
             unsafe_allow_html=True,
         )
 
-    if upload_clicked and files:
-        for f in files:
-            try:
-                r = requests.post(
-                    f"{API}/upload",
-                    files={"file": (f.name, f.getvalue(), f.type)},
-                    timeout=180,
-                )
-                if r.ok:
-                    d = r.json()
+    if upload_clicked:
+        if not files:
+            st.warning("Please select at least one file first.")
+        else:
+            for f in files:
+                # Avoid indexing the same selected file twice in one session.
+                if any(name == f.name for name, _ in st.session_state.uploaded_names):
+                    continue
+                try:
+                    d = upload_file(f.name, f.getvalue())
                     st.session_state.file_ids.append(d["file_id"])
+                    st.session_state.file_paths.append(d["path"])
                     st.session_state.uploaded_names.append((f.name, d["file_id"]))
                     st.success(f"{f.name}: indexed {d['chunks']} chunks")
-                else:
-                    st.error(r.text)
-            except requests.RequestException as exc:
-                st.error(f"Backend connection failed: {exc}")
+                except Exception as exc:
+                    st.error(f"{f.name}: indexing failed — {exc}")
 
     if st.session_state.uploaded_names:
         st.caption("Indexed: " + " • ".join(x[0] for x in st.session_state.uploaded_names))
+
 
 # -----------------------------------------------------------------------------
 # Request section
@@ -151,32 +163,30 @@ with st.container(border=True):
 
     run_clicked = st.button("🚀 Run Multi-Agent Workflow", type="primary")
 
+
 # -----------------------------------------------------------------------------
-# Run workflow only when the main button is clicked.
-# The result is saved in session_state so clicking either download button does
-# NOT require the user to run the complete multi-agent workflow again.
+# Run the same agent/generation pipeline used by the FastAPI backend, but
+# directly inside Streamlit so the app can be hosted as a single service.
 # -----------------------------------------------------------------------------
 if run_clicked:
-    payload = {
-        "message": query,
-        "session_id": "demo",
-        "document_ids": st.session_state.file_ids,
-        "generate_docx": make_doc,
-        "generate_pptx": make_ppt,
-    }
+    if not query.strip():
+        st.warning("Please write a prompt first.")
+    elif not make_doc and not make_ppt:
+        st.warning("Select at least one output format.")
+    else:
+        with st.spinner("Running agents and generating files..."):
+            try:
+                st.session_state.result = run_workflow(
+                    message=query,
+                    document_paths=st.session_state.file_paths,
+                    session_id=st.session_state.session_id,
+                    generate_docx_file=make_doc,
+                    generate_pptx_file=make_ppt,
+                )
+            except Exception as exc:
+                st.session_state.result = None
+                st.error(f"Workflow failed: {exc}")
 
-    with st.spinner("Running agents..."):
-        try:
-            r = requests.post(f"{API}/chat", json=payload, timeout=300)
-        except requests.RequestException as exc:
-            r = None
-            st.error(f"Backend connection failed: {exc}")
-
-    if r is not None:
-        if r.ok:
-            st.session_state.result = r.json()
-        else:
-            st.error(r.text)
 
 # -----------------------------------------------------------------------------
 # Results remain visible after download-button reruns.
@@ -196,7 +206,12 @@ if result:
     if result["sources"]:
         with st.expander("🌐 Web sources", expanded=False):
             for s in result["sources"]:
-                st.write(f"- [{s['title']}]({s['url']})")
+                title = s.get("title", "Source")
+                url = s.get("url", "")
+                if url:
+                    st.write(f"- [{title}]({url})")
+                else:
+                    st.write(f"- {title}")
 
     with st.container(border=True):
         st.subheader("Answer")
