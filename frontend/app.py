@@ -4,7 +4,7 @@ from pathlib import Path
 
 st.set_page_config(page_title="Multi-Agent AI", layout="wide")
 st.title("Multi-Agent AI — Document & PPT Generator")
-st.caption("RAG • Web Research • Template Analysis • Editable DOCX/PPTX • Validation • Versioning")
+st.caption("Develop by Shreyash Musmade")
 
 API = st.sidebar.text_input("FastAPI URL", "http://localhost:8000")
 if "file_ids" not in st.session_state:
