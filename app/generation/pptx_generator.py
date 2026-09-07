@@ -270,7 +270,7 @@ def _create_title_slide(prs, content, layout, number, total):
         _add_text_box(
             slide, project,
             Inches(1.35), Inches(3.58), Inches(10.63), Inches(0.58),
-            size=19, color=WHITE, align=PP_ALIGN.CENTER,
+            size=19, color=TITLE_COLOR, align=PP_ALIGN.CENTER,
         )
 
     # Company appears below the topic, not inside a large content box.
