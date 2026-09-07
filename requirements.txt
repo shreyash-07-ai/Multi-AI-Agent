@@ -4,15 +4,30 @@ streamlit>=1.40
 python-dotenv>=1.0
 pydantic>=2.8
 python-multipart>=0.0.9
+
+# Gemini - used for embeddings/RAG
 google-genai>=1.30
+
+# Grok/xAI - OpenAI-compatible API
+openai>=1.0.0
+
+# Vector Database
 pinecone>=5.0
+
+# Document Processing
 python-docx>=1.1
 python-pptx>=1.0
 PyMuPDF>=1.24
 Pillow>=10.0
 pytesseract>=0.3.13
+
+# HTTP / Web Research
 requests>=2.32
 beautifulsoup4>=4.12
+
+# Background Tasks
 celery>=5.4
 redis>=5.0
+
+# PDF
 reportlab>=4.0
